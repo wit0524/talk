@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily English｜分級週次語音練習</title>
+<style>
+:root{
+  --bg:#f5f7fb; --card:#fff; --text:#263238; --muted:#68737d;
+  --primary:#4d70c9; --primary2:#eef3ff; --line:#dfe5ee;
+  --low:#55a66a; --mid:#e69a37; --high:#8b62c7;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,#526fc5,#718fe0);color:white;padding:28px 18px 24px;text-align:center}
+header h1{margin:0 0 7px;font-size:30px}
+header p{margin:0;opacity:.92}
+.container{max-width:1180px;margin:0 auto;padding:20px}
+.toolbar{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:0 5px 20px rgba(40,55,80,.06);position:sticky;top:8px;z-index:5}
+.grades,.weeks{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;border:0;cursor:pointer}
+.grade-btn,.week-btn{padding:9px 14px;border-radius:999px;background:#eef1f6;color:#46515b;font-weight:700;transition:0.2s;}
+.grade-btn.active{color:white}
+.grade-btn[data-grade="low"].active{background:var(--low)}
+.grade-btn[data-grade="mid"].active{background:var(--mid)}
+.grade-btn[data-grade="high"].active{background:var(--high)}
+.week-btn:hover{background:#d5dbe4}
+.week-btn.active{background:#26364f;color:#fff}
+.speed{display:flex;align-items:center;gap:9px;margin-top:12px;flex-wrap:wrap}
+.speed label{font-weight:700}
+.speed button.active{background:var(--primary);color:white}
+.status{margin:14px 0 4px;color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;margin-top:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 5px 18px rgba(40,55,80,.06)}
+.card h2{font-size:20px;margin:0 0 14px;display:flex;justify-content:space-between;align-items:center;}
+.card h2 .title-left{display:flex;align-items:baseline;}
+.tag{font-size:12px;color:var(--muted);font-weight:700;margin-left:7px}
+.line{width:100%;text-align:left;background:#f8f9fc;border:1px solid #e8ebf2;border-radius:13px;padding:13px 14px;margin:7px 0;transition:.15s;}
+.line:hover{background:var(--primary2);border-color:#bdccef;}
+.line.speaking{outline:3px solid #d8e2ff;background:#eef3ff}
+.speaker{display:inline-block;width:28px;font-weight:900}
+.en{font-size:17px;line-height:1.45}
+.zh{color:var(--muted);font-size:14px;margin-top:4px;line-height:1.4}
+.play-all{background:#26364f;color:#fff;border-radius:10px;padding:9px 12px;font-size:14px;font-weight:700}
+.help{margin:18px 0;padding:14px 16px;background:#fff;border-left:5px solid var(--primary);border-radius:10px;color:#52606b;line-height:1.5;}
+footer{text-align:center;color:#87919b;padding:25px 10px;font-size:13px}
+/* 按鈕與錄音樣式 */
+.action-btn{padding:8px 10px;border-radius:50%;background:#eef3ff;color:#4d70c9;border:1px solid #bdccef;cursor:pointer;transition:0.2s;font-size:16px;display:flex;align-items:center;justify-content:center;width:40px;height:40px;}
+.action-btn:hover{background:#4d70c9;color:white}
+.recording{animation:pulse 1.5s infinite;background:#ff4d4f!important;color:white!important;border-color:#ff4d4f!important;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,77,79,.7)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.score-msg{display:none;margin-top:10px;font-size:14px;padding:10px;background:#fff;border-radius:8px;border:1px dashed #ccc;}
+@media(max-width:600px){header h1{font-size:24px}.container{padding:12px}.grid{grid-template-columns:1fr}.toolbar{position:static}}
+</style>
+</head>
+<body>
+<header id="mainHeader">
+  <h1>📚 Daily English｜週次分級語音練習</h1>
+  <p>低年級・中年級・高年級｜語音朗讀與評分練習</p>
+</header>
+
+<main class="container">
+  <section class="toolbar" id="mainToolbar">
+    <div class="grades" id="grades">
+      <button class="grade-btn" data-grade="low">低年級</button>
+      <button class="grade-btn" data-grade="mid">中年級</button>
+      <button class="grade-btn" data-grade="high">高年級</button>
+    </div>
+    <div class="speed" id="speedControls">
+      <label>🔊 語速：</label>
+      <button class="grade-btn active" id="normalBtn">正常語速</button>
+      <button class="grade-btn" id="slowBtn">較慢語速</button>
+      <button class="play-all" id="stopBtn">⏹ 停止播放</button>
+    </div>
+    <div class="weeks" id="weeks" style="margin-top:12px"></div>
+    <div class="status" id="status"></div>
+  </section>
+
+  <div class="help" id="helpBox">
+    💡 <b>使用方式：</b>先選年級，再選週次（點擊週次將在<b>新分頁</b>開啟）。<br>
+    🔊 點擊喇叭可聽發音；🎤 點擊麥克風可進行<b>口說練習與評分</b>（請允許麥克風權限）。
+  </div>
+
+  <section class="grid" id="dialogues"></section>
+</main>
+
+<script>
+const DATA = {
+low: {
+  name:"低年級",
+  weeks:[
+   [["A","Good morning.","早安。"],["B","Good morning.","早安。"]],
+   [["A","Hi, I am Roy.","你好，我是 Roy。"],["B","Hello, Roy!","你好，Roy！"]],
+   [["A","Look at me!","看著我！"],["B","Look at you!","看著你！"]],
+   [["A","Happy Teachers’ Day!","教師節快樂！"],["B","Thank you.","謝謝你。"]],
+   [["A","Listen to me!","聽我說！"],["B","Listen to you!","聽你說！"]],
+   [["A","Goodbye.","再見。"],["B","See you.","再見。"]],
+   [["A","Thank you.","謝謝你。"],["B","You’re welcome.","不客氣。"]],
+   [["A","Let’s run!","我們一起跑步吧！"],["B","Go!","走吧／跑吧！"]],
+   [["A","Stand up.","起立。"],["B","I stand up.","我起立。"]],
+   [["A","Sit down.","坐下。"],["B","I sit down.","我坐下。"]],
+   [["A","Are you OK?","你還好嗎？"],["B","Yes! / No!","還好！／不好！"]],
+   [["A","Happy Thanksgiving!","感恩節快樂！"],["B","You, too.","你也是。"]],
+   [["A","Who’s next?","下一位是誰？"],["B","It’s my turn.","輪到我了。"]],
+   [["A","Stop!","停！"],["B","Don’t run!","不要跑！"]],
+   [["A","Here you are.","給你。"],["B","Thank you.","謝謝你。"]],
+   [["A","Be quiet, please.","請安靜。"],["B","No problem!","沒問題！"]],
+   [["A","Line up, please.","請排隊。"],["B","I’m sorry!","對不起！"]],
+   [["A","Happy New Year!","新年快樂！"],["B","Happy New Year!","新年快樂！"]],
+   [["A","Open your book. Turn to page 10.","打開你的書，翻到第 10 頁。"],["B","OK.","好的！"]],
+   [["A","Happy Chinese New Year!","農曆新年快樂！"],["B","Happy Chinese New Year!","農曆新年快樂！"]]
+  ]
+},
+mid: {
+  name:"中年級",
+  weeks:[
+   [["A","Happy birthday. This is for you.","生日快樂。這是給你的。"],["B","Thank you. I love it.","謝謝你。我很喜歡。"]],
+   [["A","This is my mom/dad.","這是我媽媽／爸爸。"],["B","Nice to meet you.","很高興認識你。"]],
+   [["A","Ouch! / Oops!","哎呀！／糟糕！"],["B","Are you OK?","你還好嗎？"],["A","I’m fine.","我沒事。"]],
+   [["A","Wishing you a Happy Teachers’ Day!","祝您教師節快樂！"],["B","Thanks a lot.","非常感謝。"]],
+   [["A","Could I have some water, please?","可以給我一些水嗎？"],["B","Here you are.","給你。"],["A","Thanks.","謝謝。"]],
+   [["A","This question beats me.","這題難倒我了。"],["B","Try again.","再試一次。"]],
+   [["A","Hurray! I got a score of 100.","萬歲！我考了 100 分。"],["B","Great! Good job.","太棒了！做得好。"]],
+   [["A","Let’s play hide and seek.","我們來玩躲貓貓吧。"],["B","I can’t wait!","我等不及了！"]],
+   [["A","Jack, come here, please.","Jack，請過來一下。"],["B","Wait a minute.","等一下。"]],
+   [["A","My leg hurts.","我的腿好痛。"],["B","What happened?","怎麼了？"]],
+   [["A","I can’t wait for lunch.","我等不及要吃午餐了。"],["B","Line up, please.","請排隊。"]],
+   [["A","Thanksgiving is coming!","感恩節快到了！"],["B","I am looking forward to it!","我好期待。"]],
+   [["A","Watch out! There’s a car coming.","小心！有一台車來了。"],["B","Phew. That was close.","呼，好險。"]],
+   [["A","Earthquake! Please take cover.","地震！請找掩護。"],["B","Get under the table.","到桌子底下。"]],
+   [["A","Could you give me a hand?","可以幫我一個忙嗎？"],["B","No problem.","沒問題。"]],
+   [["A","It’s a beautiful day. Let’s go to the park!","真是美好的一天。我們去公園吧！"],["B","Sure. Let’s go.","當然。我們走吧！"]],
+   [["A","What time is it?","現在幾點了？"],["B","It’s almost noon. I’m starving.","快要中午了。我餓死了。"]],
+   [["A","The New Year is coming.","新年快到了。"],["B","Let’s count down. 10, 9, 8, 7…","我們一起倒數。10、9、8、7……"],["A","Happy New Year!","新年快樂！"]],
+   [["A","Let’s call it a day. I’m tired.","今天就到此為止吧。我好累。"],["B","Come on. Let’s play more minutes.","拜託。我們再多玩幾分鐘。"]],
+   [["A","Let’s do the Spring Cleaning!","我們來大掃除吧！"],["B","Wait for me!","等等我！"]]
+  ]
+},
+high: {
+  name:"高年級",
+  weeks:[
+   [["A","What’s up?","最近還好嗎？"],["B","Nothing much. Everything’s fine.","沒什麼事。一切都好。"]],
+   [["A","I still haven’t done my summer homework.","我還沒寫完暑假作業。"],["B","How come?","為什麼？（怎麼會這樣？）"]],
+   [["A","I’m going out now.","我要出門了。"],["B","Be careful!","路上小心！"]],
+   [["A","Teachers’ Day is coming. How should we celebrate?","教師節快到了。我們該如何慶祝呢？"],["B","I want to make cards for the teachers.","我要做卡片送給老師們。"]],
+   [["A","Today is not my day. I failed the test, and my friend argue with me.","今天真倒楣。我考差了，還跟朋友吵架。"],["B","Come on. When life gives you lemons, make lemonade.","別這樣。生活有時候很酸，就把它苦盡甘來。"]],
+   [["A","May I help you?","你需要什麼嗎？"],["B","I’d like a hamburger and a large Coke, please.","我要一個漢堡和一杯大可樂。"]],
+   [["A","Why do you look so sad?","你為什麼看起來這麼傷心？"],["B","I have Monday blues.","我有星期一憂鬱。"]],
+   [["A","How’s the weather today?","今天天氣如何？"],["B","Today’s weather is afternoon thunderstorms.","今天下午會有雷雨。"]],
+   [["A","Do you like math?","你喜歡數學嗎？"],["B","Nah. Math is not my cup of tea.","不。數學不是我的菜。"]],
+   [["A","We’re going on a school trip tomorrow.","明天我們要去校外教學。"],["B","We’d better go to bed early tonight.","我們今晚最好早點睡。"]],
+   [["A","Sorry. I’m late again.","抱歉。我又遲到了。"],["B","Be an early bird.","當個早起的人吧。"]],
+   [["A","Do you know about Thanksgiving?","你知道感恩節嗎？"],["B","Thanksgiving is a holiday celebrated in the USA and Canada.","感恩節是美國和加拿大慶祝的假期。"]],
+   [["A","Do you have plans for the vacation?","你假期有什麼計畫嗎？"],["B","Yeah. I’m going to Paris.","有啊。我要去巴黎。"],["A","Lucky you.","你真幸運。"]],
+   [["A","Time for lunch.","午餐時間到了。"],["B","Great! I’m so starving that I could eat a horse.","太棒了！我餓到可以吃掉一匹馬。"]],
+   [["A","Let’s have pizza for dinner.","我們晚餐吃披薩吧。"],["B","Sounds good.","聽起來不錯。"]],
+   [["A","Do you watch the FIFA World Cup?","你有在看 FIFA 嗎？"],["B","Yes, I’m a fan of Messi.","是。我是 Messi 的粉絲。"]],
+   [["A","Where are my glasses? I can’t find them.","我的眼鏡在哪裡？我找不到。"],["B","They’re on your head. Silly.","在你頭上。傻瓜。"]],
+   [["A","A new year is coming.","新年快到了！"],["B","New year, new hopes.","新年新希望。"]],
+   [["A","I’m sorry that I broke your phone.","很抱歉我弄壞你的手機。"],["B","Never mind.","沒關係。（別放心上。）"]],
+   [["A","My father gave me a red envelope on Chinese New Year’s Eve.","我爸爸在除夕夜給我紅包。"],["B","That’s great!","真好耶！"]]
+  ]
+}
+};
+
+const urlParams = new URLSearchParams(window.location.search);
+
+let currentGrade = urlParams.get('grade');
+if (!DATA[currentGrade]) currentGrade = 'low';
+
+let currentWeek = parseInt(urlParams.get('week'));
+if (isNaN(currentWeek) || currentWeek < 0 || currentWeek >= DATA[currentGrade].weeks.length) {
+  currentWeek = 0;
+}
+
+let isSingleView = urlParams.get('view') === 'single';
+let rate = 1;
+
+const $ = id => document.getElementById(id);
+
+// 判斷是否為單週檢視模式（在新分頁中）
+if (isSingleView) {
+  $("mainHeader").style.display = "none";
+  // 只隱藏年級與週次按鈕，保留語速控制與工具列背景
+  $("grades").style.display = "none";
+  $("weeks").style.display = "none";
+  $("status").style.display = "none";
+  // 修正語速區塊在隱藏上方元件後的邊距
+  $("speedControls").style.marginTop = "0"; 
+  $("helpBox").innerHTML = "🔊 點擊喇叭可聽發音；🎤 點擊麥克風可進行<b>口說練習與評分</b>（請允許麥克風權限）。";
+}
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+function calculateScore(spoken, target) {
+  let s = spoken.toLowerCase().replace(/[^\w\s']/g, '').trim().split(/\s+/);
+  let t = target.toLowerCase().replace(/[^\w\s']/g, '').trim().split(/\s+/);
+  let matches = 0;
+  t.forEach(word => {
+    let index = s.indexOf(word);
+    if(index > -1) { matches++; s.splice(index, 1); }
+  });
+  return Math.min(100, Math.round((matches / t.length) * 100)) || 0;
+}
+
+function startRecording(btn, targetText, scoreDiv) {
+  if (!SpeechRecognition) {
+    alert("您的瀏覽器不支援語音辨識，請使用 Chrome 或 Edge 瀏覽器進行錄音。");
+    return;
+  }
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  
+  btn.classList.add("recording");
+  scoreDiv.style.display = "block";
+  scoreDiv.innerHTML = "🎙️ 聆聽中，請開始說話...";
+  scoreDiv.style.color = "#68737d";
+  
+  recognition.onresult = (event) => {
+    const spoken = event.results[0][0].transcript;
+    const score = calculateScore(spoken, targetText);
+    
+    let feedback = `<b>您唸的是：</b>「${spoken}」<br><b>準確率：</b>${score}% `;
+    if (score >= 80) { feedback += "🌟 太棒了！發音很標準！"; scoreDiv.style.color = "green"; }
+    else if (score >= 50) { feedback += "👍 很好，再多練習幾次會更好！"; scoreDiv.style.color = "orange"; }
+    else { feedback += "💪 沒關係，點擊喇叭多聽幾次再挑戰！"; scoreDiv.style.color = "red"; }
+    
+    scoreDiv.innerHTML = feedback;
+  };
+  
+  recognition.onerror = () => {
+    scoreDiv.innerHTML = "⚠️ 無法辨識，請確認麥克風是否開啟，並再試一次。";
+    scoreDiv.style.color = "red";
+    btn.classList.remove("recording");
+  };
+  
+  recognition.onend = () => {
+    btn.classList.remove("recording");
+  };
+  
+  recognition.start();
+}
+
+function renderWeeks(){
+  const box=$("weeks"); box.innerHTML="";
+  DATA[currentGrade].weeks.forEach((_,i)=>{
+    const b=document.createElement("button");
+    b.className="week-btn"+(i===currentWeek?" active":"");
+    b.textContent=`第 ${i+1} 週`;
+    b.onclick=()=>{
+      const baseUrl = window.location.href.split('?')[0];
+      window.open(`${baseUrl}?grade=${currentGrade}&week=${i}&view=single`, '_blank');
+    };
+    box.appendChild(b);
+  });
+}
+
+function speak(text, el){
+  if(!("speechSynthesis" in window)){alert("此瀏覽器不支援語音朗讀，建議使用 Chrome、Edge 或 Safari。");return;}
+  speechSynthesis.cancel();
+  document.querySelectorAll(".line").forEach(x=>x.classList.remove("speaking"));
+  if(el) el.classList.add("speaking");
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="en-US"; u.rate=rate; u.pitch=1; u.volume=1;
+  u.onend=()=>{if(el)el.classList.remove("speaking")};
+  speechSynthesis.speak(u);
+}
+
+function playDialogue(lines, card){
+  speechSynthesis.cancel();
+  document.querySelectorAll(".line").forEach(x=>x.classList.remove("speaking"));
+  let i=0;
+  const next=()=>{
+    if(i>=lines.length)return;
+    const line=lines[i++];
+    const btn=[...card.querySelectorAll(".line")][i-1];
+    btn.classList.add("speaking");
+    const u=new SpeechSynthesisUtterance(line[1]);
+    u.lang="en-US"; u.rate=rate; u.pitch=1;
+    u.onend=()=>{btn.classList.remove("speaking");setTimeout(next,250)};
+    speechSynthesis.speak(u);
+  };
+  next();
+}
+
+function renderCards(){
+  const box=$("dialogues"); box.innerHTML="";
+  const list=DATA[currentGrade].weeks.slice(currentWeek,currentWeek+1);
+  list.forEach((lines)=>{
+    const card=document.createElement("article"); card.className="card";
+    card.innerHTML=`
+      <h2>
+        <div class="title-left">第 ${currentWeek+1} 週 <span class="tag">${DATA[currentGrade].name}・Daily English</span></div>
+        <button class="play-all">▶ 播放整段</button>
+      </h2>`;
+    card.querySelector(".play-all").onclick=()=>playDialogue(lines,card);
+    
+    lines.forEach(line=>{
+      const wrapper=document.createElement("div"); wrapper.className="line";
+      wrapper.innerHTML=`
+        <div style="display:flex; justify-content: space-between; align-items: center;">
+          <div style="flex:1;">
+            <div class="en"><span class="speaker">${line[0]}：</span>${line[1]}</div>
+            <div class="zh">${line[2]}</div>
+          </div>
+          <div style="display:flex; gap: 8px; margin-left:12px;">
+            <button class="action-btn play-btn" title="聽發音">🔊</button>
+            <button class="action-btn mic-btn" title="語音評分練習">🎤</button>
+          </div>
+        </div>
+        <div class="score-msg"></div>
+      `;
+      
+      const playBtn = wrapper.querySelector(".play-btn");
+      const micBtn = wrapper.querySelector(".mic-btn");
+      const scoreMsg = wrapper.querySelector(".score-msg");
+      
+      playBtn.onclick=()=>speak(line[1], wrapper);
+      micBtn.onclick=()=>startRecording(micBtn, line[1], scoreMsg);
+      
+      card.appendChild(wrapper);
+    });
+    box.appendChild(card);
+  });
+  $("status").textContent=`目前：${DATA[currentGrade].name}｜第 ${currentWeek+1} 週｜語速：${rate===1?"正常":"較慢"}`;
+}
+
+document.querySelectorAll(".grade-btn[data-grade]").forEach(btn=>{
+  if(btn.dataset.grade === currentGrade) btn.classList.add("active");
+  else btn.classList.remove("active");
+  
+  btn.onclick=()=>{
+    currentGrade=btn.dataset.grade; currentWeek=0;
+    document.querySelectorAll(".grade-btn[data-grade]").forEach(x=>x.classList.remove("active"));
+    btn.classList.add("active"); 
+    
+    if(!isSingleView) {
+      try {
+        const baseUrl = window.location.href.split('?')[0];
+        window.history.pushState({}, '', `${baseUrl}?grade=${currentGrade}&week=0`);
+      } catch(e) {
+        console.log("Local file execution blocked history.pushState, ignoring.");
+      }
+    }
+    renderWeeks(); renderCards();
+  };
+});
+
+$("normalBtn").onclick=()=>{rate=1;$("normalBtn").classList.add("active");$("slowBtn").classList.remove("active");renderCards()};
+$("slowBtn").onclick=()=>{rate=.68;$("slowBtn").classList.add("active");$("normalBtn").classList.remove("active");renderCards()};
+$("stopBtn").onclick=()=>{speechSynthesis.cancel();document.querySelectorAll(".line").forEach(x=>x.classList.remove("speaking"));};
+
+renderWeeks();
+renderCards();
+</script>
+</body>
+</html>
