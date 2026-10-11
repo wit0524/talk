@@ -202,18 +202,21 @@ function calculateScore(spoken, target) {
   return Math.min(100, Math.round((matches / t.length) * 100)) || 0;
 }
 
+// 改良版的語音辨識功能
 function startRecording(btn, targetText, scoreDiv) {
   if (!SpeechRecognition) {
     alert("您的瀏覽器不支援語音辨識，請使用 Chrome 或 Edge 瀏覽器進行錄音。");
     return;
   }
+  
   const recognition = new SpeechRecognition();
   recognition.lang = 'en-US';
   recognition.interimResults = false;
+  recognition.maxAlternatives = 1; 
   
   btn.classList.add("recording");
   scoreDiv.style.display = "block";
-  scoreDiv.innerHTML = "🎙️ 聆聽中，請開始說話...";
+  scoreDiv.innerHTML = "🎙️ 聆聽中，請立即開始說話...";
   scoreDiv.style.color = "#68737d";
   
   recognition.onresult = (event) => {
@@ -228,8 +231,19 @@ function startRecording(btn, targetText, scoreDiv) {
     scoreDiv.innerHTML = feedback;
   };
   
-  recognition.onerror = () => {
-    scoreDiv.innerHTML = "⚠️ 無法辨識，請確認麥克風是否開啟，並再試一次。";
+  recognition.onerror = (event) => {
+    let errorMsg = "⚠️ 無法辨識，請確認麥克風是否開啟。";
+    if (event.error === 'no-speech') {
+      errorMsg = "⚠️ 沒有偵測到聲音。請點擊後「立即」說話，並靠近麥克風一點。";
+    } else if (event.error === 'audio-capture') {
+      errorMsg = "⚠️ 找不到麥克風設備，請確認電腦有連接麥克風。";
+    } else if (event.error === 'not-allowed') {
+      errorMsg = "⚠️ 麥克風權限被拒絕。如果是本機檔案 (file://) 容易發生此問題，請透過伺服器環境開啟。";
+    } else if (event.error === 'network') {
+      errorMsg = "⚠️ 語音辨識需要網路連線，請確認網路狀態。";
+    }
+    
+    scoreDiv.innerHTML = errorMsg;
     scoreDiv.style.color = "red";
     btn.classList.remove("recording");
   };
@@ -238,7 +252,12 @@ function startRecording(btn, targetText, scoreDiv) {
     btn.classList.remove("recording");
   };
   
-  recognition.start();
+  try {
+    recognition.start();
+  } catch (e) {
+    console.error("麥克風啟動衝突：", e);
+    btn.classList.remove("recording");
+  }
 }
 
 function renderWeeks(){
