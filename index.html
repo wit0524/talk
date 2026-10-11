@@ -78,7 +78,7 @@ footer{text-align:center;color:#87919b;padding:25px 10px;font-size:13px}
 
   <div class="help" id="helpBox">
     💡 <b>使用方式：</b>先選年級，再選週次（點擊週次將在<b>新分頁</b>開啟）。<br>
-    🔊 點擊喇叭可聽發音；🎤 點擊麥克風可進行<b>口說練習與評分</b>（請允許麥克風權限）。
+    🔊 點擊喇叭可聽發音；🎤 點擊麥克風後請立即說完整句子。若沒有結果，請確認網站為 HTTPS、允許麥克風，並檢查網路連線。
   </div>
 
   <section class="grid" id="dialogues"></section>
@@ -187,7 +187,7 @@ if (isSingleView) {
   $("status").style.display = "none";
   // 修正語速區塊在隱藏上方元件後的邊距
   $("speedControls").style.marginTop = "0"; 
-  $("helpBox").innerHTML = "🔊 點擊喇叭可聽發音；🎤 點擊麥克風可進行<b>口說練習與評分</b>（請允許麥克風權限）。";
+  $("helpBox").innerHTML = "🔊 點擊喇叭可聽發音；🎤 點擊麥克風後請立即說完整句子。若沒有結果，請確認網站為 HTTPS、允許麥克風，並檢查網路連線。";
 }
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -202,61 +202,165 @@ function calculateScore(spoken, target) {
   return Math.min(100, Math.round((matches / t.length) * 100)) || 0;
 }
 
-// 改良版的語音辨識功能
+// 加強版語音辨識：狀態提示、錯誤分類、避免重複啟動、顯示即時辨識文字
+let activeRecognition = null;
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[ch]));
+}
+
+function showSpeechMessage(scoreDiv, message, color = "#68737d") {
+  scoreDiv.style.display = "block";
+  scoreDiv.style.color = color;
+  scoreDiv.textContent = message;
+}
+
 function startRecording(btn, targetText, scoreDiv) {
-  if (!SpeechRecognition) {
-    alert("您的瀏覽器不支援語音辨識，請使用 Chrome 或 Edge 瀏覽器進行錄音。");
+  const RecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!window.isSecureContext) {
+    showSpeechMessage(scoreDiv,
+      "⚠️ 網頁不是安全連線。請使用 GitHub Pages／Netlify 的 HTTPS 網址開啟。", "red");
     return;
   }
-  
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1; 
-  
+
+  if (!RecognitionCtor) {
+    showSpeechMessage(scoreDiv,
+      "⚠️ 此瀏覽器不支援語音辨識。請改用最新版 Chrome 或 Edge。", "red");
+    return;
+  }
+
+  // 防止同一時間啟動多個辨識工作
+  if (activeRecognition) {
+    showSpeechMessage(scoreDiv, "🎙️ 目前已有一個辨識工作進行中，請先等它結束。", "#b26a00");
+    return;
+  }
+
+  const recognition = new RecognitionCtor();
+  activeRecognition = recognition;
+
+  recognition.lang = "en-US";
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 3;
+
+  let finalTranscript = "";
+  let gotResult = false;
+  let hadError = false;
+  let endedNormally = false;
+
   btn.classList.add("recording");
-  scoreDiv.style.display = "block";
-  scoreDiv.innerHTML = "🎙️ 聆聽中，請立即開始說話...";
-  scoreDiv.style.color = "#68737d";
-  
-  recognition.onresult = (event) => {
-    const spoken = event.results[0][0].transcript;
-    const score = calculateScore(spoken, targetText);
-    
-    let feedback = `<b>您唸的是：</b>「${spoken}」<br><b>準確率：</b>${score}% `;
-    if (score >= 80) { feedback += "🌟 太棒了！發音很標準！"; scoreDiv.style.color = "green"; }
-    else if (score >= 50) { feedback += "👍 很好，再多練習幾次會更好！"; scoreDiv.style.color = "orange"; }
-    else { feedback += "💪 沒關係，點擊喇叭多聽幾次再挑戰！"; scoreDiv.style.color = "red"; }
-    
-    scoreDiv.innerHTML = feedback;
+  btn.disabled = true;
+  btn.setAttribute("aria-label", "正在聆聽");
+  showSpeechMessage(scoreDiv, "🎙️ 正在準備麥克風……請稍候。");
+
+  recognition.onstart = () => {
+    showSpeechMessage(scoreDiv, "🎙️ 已開始聆聽，請清楚說出完整英文句子。");
   };
-  
-  recognition.onerror = (event) => {
-    let errorMsg = "⚠️ 無法辨識，請確認麥克風是否開啟。";
-    if (event.error === 'no-speech') {
-      errorMsg = "⚠️ 沒有偵測到聲音。請點擊後「立即」說話，並靠近麥克風一點。";
-    } else if (event.error === 'audio-capture') {
-      errorMsg = "⚠️ 找不到麥克風設備，請確認電腦有連接麥克風。";
-    } else if (event.error === 'not-allowed') {
-      errorMsg = "⚠️ 麥克風權限被拒絕。如果是本機檔案 (file://) 容易發生此問題，請透過伺服器環境開啟。";
-    } else if (event.error === 'network') {
-      errorMsg = "⚠️ 語音辨識需要網路連線，請確認網路狀態。";
+
+  recognition.onaudiostart = () => {
+    if (!gotResult && !hadError) {
+      showSpeechMessage(scoreDiv, "🎤 麥克風已啟動，請現在開始說話。");
     }
-    
-    scoreDiv.innerHTML = errorMsg;
-    scoreDiv.style.color = "red";
-    btn.classList.remove("recording");
   };
-  
+
+  recognition.onspeechstart = () => {
+    if (!gotResult && !hadError) {
+      showSpeechMessage(scoreDiv, "👂 偵測到聲音，請繼續說完句子……");
+    }
+  };
+
+  recognition.onresult = (event) => {
+    let interimTranscript = "";
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript || "";
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript + " ";
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+
+    const preview = (finalTranscript + interimTranscript).trim();
+    if (preview) {
+      gotResult = true;
+      showSpeechMessage(scoreDiv, "📝 聽到的內容：" + preview + (interimTranscript ? " …" : ""));
+    }
+
+    if (finalTranscript.trim()) {
+      const spoken = finalTranscript.trim();
+      const score = calculateScore(spoken, targetText);
+      const safeSpoken = escapeHTML(spoken);
+
+      let feedback = `<b>您唸的是：</b>「${safeSpoken}」<br><b>字詞符合度：</b>${score}% `;
+      if (score >= 80) {
+        feedback += "🌟 太棒了！辨識到的字詞大多正確。";
+        scoreDiv.style.color = "green";
+      } else if (score >= 50) {
+        feedback += "👍 不錯，再聽一次並練習完整句子。";
+        scoreDiv.style.color = "orange";
+      } else {
+        feedback += "💪 再試一次，請靠近麥克風並清楚、完整地說。";
+        scoreDiv.style.color = "red";
+      }
+      scoreDiv.style.display = "block";
+      scoreDiv.innerHTML = feedback;
+    }
+  };
+
+  recognition.onnomatch = () => {
+    showSpeechMessage(scoreDiv,
+      "⚠️ 有收到聲音，但無法判斷英文內容。請放慢速度、靠近麥克風，再試一次。", "#b26a00");
+  };
+
+  recognition.onerror = (event) => {
+    hadError = true;
+    const messages = {
+      "no-speech": "沒有偵測到說話聲。請點麥克風後立即說話，並確認麥克風沒有靜音。",
+      "audio-capture": "找不到可用的麥克風。請檢查電腦輸入裝置或改用耳麥。",
+      "not-allowed": "麥克風／語音辨識權限遭拒。請點網址列左側的網站設定，允許麥克風後重新載入。",
+      "service-not-allowed": "瀏覽器或裝置封鎖了語音辨識服務。請改用最新版 Chrome／Edge，並檢查學校網路限制。",
+      "network": "語音辨識服務連線失敗。請確認網路可連線，暫時關閉 VPN／過濾器後再試；部分瀏覽器的辨識服務需要連線到外部服務。",
+      "language-not-supported": "此瀏覽器的語音辨識服務不支援 en-US。請改用最新版 Chrome 或 Edge。",
+      "aborted": "辨識已中止。若不是你主動停止，請再點一次麥克風。",
+      "bad-grammar": "瀏覽器的語音辨識設定發生問題，請重新載入網頁後再試。"
+    };
+    showSpeechMessage(scoreDiv,
+      "⚠️ " + (messages[event.error] || `語音辨識失敗（${event.error || "未知錯誤"}）。請重新嘗試。`),
+      "red");
+    console.warn("SpeechRecognition error:", event.error, event.message || "");
+  };
+
   recognition.onend = () => {
+    endedNormally = true;
     btn.classList.remove("recording");
+    btn.disabled = false;
+    btn.setAttribute("aria-label", "語音評分練習");
+    if (activeRecognition === recognition) activeRecognition = null;
+
+    if (!hadError && !gotResult) {
+      showSpeechMessage(scoreDiv,
+        "沒有取得辨識結果。請確認麥克風輸入音量正常、網路可用，然後按 🎤 再試一次。",
+        "#b26a00");
+    }
   };
-  
+
   try {
     recognition.start();
-  } catch (e) {
-    console.error("麥克風啟動衝突：", e);
+  } catch (error) {
+    hadError = true;
+    if (activeRecognition === recognition) activeRecognition = null;
     btn.classList.remove("recording");
+    btn.disabled = false;
+    btn.setAttribute("aria-label", "語音評分練習");
+    const msg = error && error.name === "InvalidStateError"
+      ? "辨識器目前忙碌中，請稍等幾秒再試。"
+      : "無法啟動語音辨識。請重新載入頁面，並確認麥克風權限。";
+    showSpeechMessage(scoreDiv, "⚠️ " + msg, "red");
+    console.warn("SpeechRecognition start failed:", error);
   }
 }
 
